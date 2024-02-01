@@ -1,22 +1,15 @@
 const express = require('express');
 const http = require('http');
-const sessionMiddleware = require('./sessionMiddleware.js');
-const mysqlConnection = require('./mySQL.js');
+const sessionMiddleware = require('./src/middlewares/session.middleware.js');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const cors = require("cors");
 require('dotenv').config();
-
-const corsOptions = {
-  origin: ["http://localhost:3000", "https://math-thai.dam.inspedralbes.cat"],
-  credentials: true,
-  methods: ['GET', 'POST', 'DELETE'],
-  exposedHeaders: ['set-cookie', 'ajax-redirect'],
-  preflightContinue: true,
-  optionsSuccessStatus: 200,
-};
-
 const app = express();
+const usersRouter = require('./src/routes/users.route');
+const corsOptions = require('./src/middlewares/cors.middleware.js');
+
+
 app.use(sessionMiddleware);
 app.use(express.json());
 app.use(bodyParser.json());
@@ -26,23 +19,24 @@ app.use(cors(corsOptions));
 const port = process.env.PORT || 3666;
 
 const server = http.createServer(app);
-server.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+
 
 app.get('/', (req, res) => {
-  var response = {};
-  response.msg = 'Hello World!';
-  res.json(response);
+  res.json({'message': 'ok'});
+})
+
+app.use('/users', usersRouter);
+
+/* Error handler middleware */
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  console.error(err.message, err.stack);
+  res.status(statusCode).json({'message': err.message});
+  
+  return;
 });
 
 
-
-//
-//
-//USER ENDPOINTS
-//
-//
 app.post('/login', (req, res) => {
   var response = {};
   if (req.body.username === 'Juan' && req.body.password === '1234') {
@@ -54,21 +48,7 @@ app.post('/login', (req, res) => {
     res.json(response);
   }
 });
-app.post('/registerUser', (req,res) => {
-  userData = req.body;
-  let check = true;
 
-  mysqlConnection.getUsernames((usernames) => {
-    usernames.forEach(username => {
-      if (username.username == userData.username) {
-        check = false;
-      }
-    })
-    if (check) {
-      mysqlConnection.insertUser([userData.username,userData.password],((result) => {res.send(result)}))
-    }
-    else {
-      res.status(409).send("Mail already in use");
-    }
-  })
-})
+server.listen(port,'0.0.0.0', () => {
+  console.log(`Server is running on port ${port}`);
+});
